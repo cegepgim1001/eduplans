@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Multi-Specialization Course Plan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals -->
+    <!-- Application Structure Plan: A single-page vertical layout with a fixed top navigation. Cycle 1 is a common foundation. Cycles 2 and 3 feature an interactive tabbed interface, allowing users to switch between "Cybersecurity," "DevOps," "Data Science," and "Blockchain" tracks. This design clearly presents the multiple specialization choices and facilitates easy comparison of the different paths, enhancing user exploration and understanding of the expanded curriculum. Course details are displayed in a modal window upon clicking a course card. -->
+    <!-- Visualization & Content Choices: Report Info: Course lists for four specializations -> Goal: Organize/Compare -> Presentation: Tabbed HTML card sections -> Interaction: Click tabs to switch visible track -> Justification: Tabs are an intuitive UI pattern for navigating and comparing distinct content sets, crucial for presenting multiple specialization options. Report Info: Course counts per track per cycle -> Goal: Compare -> Viz: Stacked Bar Chart -> Interaction: Hover for tooltips -> Justification: Provides a clear visual breakdown of course distribution across all specializations and cycles, allowing for quick insights into curriculum structure. Library: Chart.js (Canvas). -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fdfcfb;
+            color: #333;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 450px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .nav-btn.active {
+            background-color: #4a5568;
+            color: #ffffff;
+        }
+        .course-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .course-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .modal-backdrop {
+            transition: opacity 0.3s ease;
+        }
+        .track-tab {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            white-space: nowrap; /* Prevent text wrapping on tabs */
+        }
+        .track-tab.active {
+            background-color: #3b82f6;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .track-tab:not(.active):hover {
+            background-color: #e5e7eb;
+        }
+        .tab-container {
+            overflow-x: auto; /* Enable horizontal scrolling for tabs if needed */
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+            scrollbar-width: none; /* Hide scrollbar for Firefox */
+            -ms-overflow-style: none;  /* Hide scrollbar for IE and Edge */
+        }
+        .tab-container::-webkit-scrollbar {
+            display: none; /* Hide scrollbar for Chrome, Safari, and Opera */
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-40">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <h1 class="text-xl md:text-2xl font-bold text-gray-800">University Curriculum</h1>
+                <div class="hidden md:flex items-center space-x-2">
+                    <button onclick="scrollToSection('cycle1')" class="nav-btn px-4 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-200">Cycle 1: Foundations</button>
+                    <button onclick="scrollToSection('cycle2')" class="nav-btn px-4 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-200">Cycle 2: Specialization</button>
+                    <button onclick="scrollToSection('cycle3')" class="nav-btn px-4 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-200">Cycle 3: Advanced</button>
+                </div>
+                 <div class="md:hidden">
+                    <select onchange="scrollToSection(this.value)" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                        <option value="cycle1">Cycle 1</option>
+                        <option value="cycle2">Cycle 2</option>
+                        <option value="cycle3">Cycle 3</option>
+                    </select>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        
+        <section id="overview" class="text-center mb-16">
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Multi-Specialization Program</h2>
+            <p class="max-w-3xl mx-auto text-lg text-gray-600 mb-8">This interactive guide outlines a comprehensive program with four specialization tracks. After a common foundational cycle, students can choose to specialize in Cybersecurity, DevOps, Data Science, or Blockchain. Explore the curriculum below.</p>
+            <div class="chart-container">
+                <canvas id="curriculumChart"></canvas>
+            </div>
+        </section>
+
+        <section id="cycle1" class="py-12 scroll-mt-16">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-gray-900">Cycle 1: Foundational Technologies (Common for All)</h2>
+                <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">This initial cycle establishes a strong, common understanding of the core technologies that all modern IT work is built upon, preparing students for any specialization track.</p>
+            </div>
+            <div id="cycle1-courses" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
+        </section>
+
+        <section id="cycle2" class="py-12 scroll-mt-16">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-gray-900">Cycle 2: Core Skills & Specialization Choice</h2>
+                <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Here, students select a track. The curriculum includes one common security course, after which the paths diverge into specialized core skills for either Cybersecurity, DevOps, Data Science, or Blockchain.</p>
+                <div class="mt-8 p-1.5 inline-flex items-center bg-gray-200 rounded-full tab-container">
+                    <button id="cycle2-cybersec-tab" onclick="switchTrack('cycle2', 'cybersec')" class="track-tab active px-6 py-2 text-sm font-semibold rounded-full">Cybersecurity</button>
+                    <button id="cycle2-devops-tab" onclick="switchTrack('cycle2', 'devops')" class="track-tab px-6 py-2 text-sm font-semibold rounded-full">DevOps</button>
+                    <button id="cycle2-dataScience-tab" onclick="switchTrack('cycle2', 'dataScience')" class="track-tab px-6 py-2 text-sm font-semibold rounded-full">Data Science</button>
+                    <button id="cycle2-blockchain-tab" onclick="switchTrack('cycle2', 'blockchain')" class="track-tab px-6 py-2 text-sm font-semibold rounded-full">Blockchain</button>
+                </div>
+            </div>
+            <div id="cycle2-courses-common" class="mb-8"></div>
+            <div id="cycle2-courses-specialized" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
+        </section>
+
+        <section id="cycle3" class="py-12 scroll-mt-16">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-gray-900">Cycle 3: Advanced Specializations and Capstone</h2>
+                <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">The final cycle is dedicated to advanced topics within the chosen specialization, culminating in a significant, hands-on capstone project that applies all the knowledge gained.</p>
+                <div class="mt-8 p-1.5 inline-flex items-center bg-gray-200 rounded-full tab-container">
+                    <button id="cycle3-cybersec-tab" onclick="switchTrack('cycle3', 'cybersec')" class="track-tab active px-6 py-2 text-sm font-semibold rounded-full">Cybersecurity</button>
+                    <button id="cycle3-devops-tab" onclick="switchTrack('cycle3', 'devops')" class="track-tab px-6 py-2 text-sm font-semibold rounded-full">DevOps</button>
+                    <button id="cycle3-dataScience-tab" onclick="switchTrack('cycle3', 'dataScience')" class="track-tab px-6 py-2 text-sm font-semibold rounded-full">Data Science</button>
+                    <button id="cycle3-blockchain-tab" onclick="switchTrack('cycle3', 'blockchain')" class="track-tab px-6 py-2 text-sm font-semibold rounded-full">Blockchain</button>
+                </div>
+            </div>
+            <div id="cycle3-courses-specialized" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
+        </section>
+    </main>
+
+    <div id="course-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4 modal-backdrop" onclick="closeModal()">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+            <div class="p-6 md:p-8">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 id="modal-title" class="text-2xl font-bold text-gray-900"></h3>
+                        <p id="modal-code" class="text-sm text-gray-500 font-mono"></p>
+                    </div>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+                </div>
+                <div id="modal-body" class="prose max-w-none text-gray-700"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const courseData = {
+            cycle1: [
+                { id: 'c1-1', title: 'Intro to Computer Systems & Architecture', details: '<ul><li>Hardware components (CPU, memory, storage, I/O).</li><li>Basic operating system concepts.</li><li>Assembly language fundamentals.</li></ul>' },
+                { id: 'c1-2', title: 'OS & Administration (Windows/Linux)', details: '<ul><li>Deep dive into Windows and Linux.</li><li>User/group management, file permissions.</li><li>Process management, services, daemons.</li><li>System logging and CLI basics.</li></ul>' },
+                { id: 'c1-3', title: 'Server OS & Virtualization', details: '<ul><li>Server OS administration.</li><li>Active Directory/LDAP concepts.</li><li>Virtualization (VMware, VirtualBox, Hyper-V).</li><li>VM creation, management, networking.</li></ul>' },
+                { id: 'c1-4', title: 'Networking Fundamentals', details: '<ul><li>OSI and TCP/IP models.</li><li>Networking devices (routers, switches, firewalls).</li><li>IP addressing, subnetting, routing.</li><li>Common network protocols and tools.</li></ul>' },
+                { id: 'c1-5', title: 'Containerization & Cloud Basics', details: '<ul><li>Intro to Docker & Kubernetes concepts.</li><li>Benefits and use cases of containers.</li><li>Cloud computing concepts (IaaS, PaaS, SaaS).</li><li>Overview of major cloud providers.</li></ul>' }
+            ],
+            cycle2: {
+                common: [
+                    { id: 'c2-c1', code: 'ITCE-8000', title: 'System Security Fundamentals', details: '<ul><li>Security principles (Confidentiality, Integrity, Availability).</li><li>Threats, vulnerabilities, and risks.</li><li>Access control models & cryptography basics.</li><li>Security policies and procedures.</li></ul>' }
+                ],
+                cybersec: [
+                    { id: 'c2-cs1', code: 'ITCE-8001', title: 'Shell Scripting Foundations', details: '<ul><li>Bash (Linux) and PowerShell (Windows).</li><li>Automating administrative and security tasks.</li><li>Parsing logs, managing files, executing commands.</li></ul>' },
+                    { id: 'c2-cs2', code: 'ITCE-8002', title: 'Introduction to Python', details: '<ul><li>Python programming fundamentals.</li><li>Using Python for network scanning, data analysis, and security tool development.</li></ul>' },
+                    { id: 'c2-cs3', code: 'ITCE-8003', title: 'Cybersecurity Legislation', details: '<ul><li>Overview of key laws (GDPR, HIPAA, CCPA).</li><li>Compliance requirements and legal implications.</li><li>Ethical considerations in cybersecurity.</li></ul>' },
+                    { id: 'c2-cs4', code: 'ITCE-8004', title: 'Lab Design and Automation', details: '<ul><li>Setting up secure lab environments.</li><li>Automating lab deployments with scripting.</li><li>Virtual machine and network segmentation.</li></ul>' },
+                    { id: 'c2-cs5', code: 'ITCE-8005', title: 'Tools for Pen-Testing', details: '<ul><li>Intro to penetration testing methodologies.</li><li>Hands-on with Nmap, Metasploit, Wireshark, Burp Suite.</li><li>Vulnerability scanning and exploitation basics.</li></ul>' }
+                ],
+                devops: [
+                    { id: 'c2-do1', title: 'Version Control & Collaboration (Git)', details: '<ul><li>Deep dive into Git for version control.</li><li>Branching strategies, merging, and pull requests.</li><li>Collaborative workflows (GitHub, GitLab).</li></ul>' },
+                    { id: 'c2-do2', title: 'CI/CD Fundamentals', details: '<ul><li>Concepts of CI/CD pipelines.</li><li>Intro to Jenkins, GitLab CI, GitHub Actions.</li><li>Building, testing, and deploying applications automatically.</li></ul>' },
+                    { id: 'c2-do3', title: 'Infrastructure as Code (IaC) Basics', details: '<ul><li>Principles of managing infrastructure via code.</li><li>Intro to Terraform and Ansible.</li><li>Automating provisioning and configuration.</li></ul>' },
+                    { id: 'c2-do4', title: 'Monitoring, Logging & Alerting', details: '<ul><li>Importance of monitoring and logging.</li><li>Intro to Prometheus, Grafana, ELK Stack.</li><li>Setting up basic alerts and dashboards.</li></ul>' },
+                    { id: 'c2-do5', title: 'Container Orchestration with Kubernetes', details: '<ul><li>Kubernetes architecture and concepts.</li><li>Deploying and managing containerized applications at scale.</li><li>Basic Kubernetes objects (Pods, Deployments).</li></ul>' }
+                ],
+                dataScience: [
+                    { id: 'c2-ds1', title: 'Mathematics for Data Science', details: '<ul><li>Linear Algebra, Calculus, Probability, and Statistics foundations for data analysis.</li><li>Understanding mathematical concepts behind machine learning algorithms.</li></ul>' },
+                    { id: 'c2-ds2', title: 'Programming for Data Science (Python & R)', details: '<ul><li>Advanced Python for data manipulation (Pandas, NumPy).</li><li>Introduction to R for statistical analysis and visualization.</li></ul>' },
+                    { id: 'c2-ds3', title: 'Data Collection & Preprocessing', details: '<ul><li>Methods for data acquisition (APIs, web scraping, databases).</li><li>Techniques for data cleaning, transformation, and feature engineering.</li></ul>' },
+                    { id: 'c2-ds4', title: 'Exploratory Data Analysis & Visualization', details: '<ul><li>Principles of EDA to uncover patterns and insights.</li><li>Using libraries like Matplotlib, Seaborn, Plotly for effective data visualization.</li></ul>' },
+                    { id: 'c2-ds5', title: 'Introduction to Machine Learning', details: '<ul><li>Core concepts of supervised and unsupervised learning.</li><li>Basic algorithms: regression, classification, clustering.</li><li>Model evaluation metrics.</li></ul>' }
+                ],
+                blockchain: [
+                    { id: 'c2-bc1', title: 'Blockchain Fundamentals & Cryptography', details: '<ul><li>Core concepts of blockchain technology (distributed ledger, immutability, consensus).</li><li>Hashing, digital signatures, and public-key cryptography in blockchain.</li></ul>' },
+                    { id: 'c2-bc2', title: 'Decentralized Systems & Consensus Mechanisms', details: '<ul><li>Understanding decentralized networks and peer-to-peer communication.</li><li>Proof of Work, Proof of Stake, and other consensus algorithms.</li></ul>' },
+                    { id: 'c2-bc3', title: 'Smart Contracts & DApp Development (Solidity)', details: '<ul><li>Introduction to smart contracts and their execution.</li><li>Developing basic Decentralized Applications (DApps) using Solidity on Ethereum.</li></ul>' },
+                    { id: 'c2-bc4', title: 'Blockchain Platforms & Ecosystems', details: '<ul><li>Overview of major blockchain platforms (Ethereum, Bitcoin, Hyperledger, Polkadot).</li><li>Understanding their architectures, use cases, and development tools.</li></ul>' },
+                    { id: 'c2-bc5', title: 'Blockchain Security & Privacy', details: '<ul><li>Common vulnerabilities in smart contracts and blockchain networks.</li><li>Privacy-enhancing technologies (e.g., zero-knowledge proofs).</li></ul>' }
+                ]
+            },
+            cycle3: {
+                cybersec: [
+                    { id: 'c3-cs1', code: 'ITCS-8000', title: 'Ethical Hacker', details: '<ul><li>Advanced penetration testing techniques.</li><li>Web application security testing.</li><li>Wireless network security and social engineering.</li></ul>' },
+                    { id: 'c3-cs2', code: 'ITCS-8001', title: 'Cybersecurity Defense', details: '<ul><li>Defensive security strategies.</li><li>IDS/IPS and SIEM concepts.</li><li>Endpoint detection and response (EDR).</li></ul>' },
+                    { id: 'c3-cs3', code: 'ITCS-8002', title: 'Incident Handling and Forensics', details: '<ul><li>Incident response lifecycle.</li><li>Digital forensics methodologies and tools.</li><li>Malware analysis basics.</li></ul>' },
+                    { id: 'c3-cs4', code: 'ITCS-8003', title: 'Cybersecurity Capstone Part A', details: '<ul><li>Work on a significant cybersecurity project.</li><li>Project selection, planning, and initial implementation.</li></ul>' },
+                    { id: 'c3-cs5', code: 'ITCS-8004', title: 'Cybersecurity Capstone Part B', details: '<ul><li>Continuation and completion of the capstone.</li><li>Presentation of findings, demos, and reports.</li></ul>' }
+                ],
+                devops: [
+                    { id: 'c3-do1', title: 'Advanced IaC & Policy', details: '<ul><li>Advanced IaC patterns and best practices.</li><li>Policy as Code (OPA, Sentinel) for governance.</li><li>Managing complex cloud environments.</li></ul>' },
+                    { id: 'c3-do2', title: 'DevSecOps: Integrating Security', details: '<ul><li>Principles of DevSecOps.</li><li>Automating security testing (SAST, DAST, SCA) in CI/CD pipelines.</li><li>Security for cloud-native apps.</li></ul>' },
+                    { id: 'c3-do3', title: 'Site Reliability Engineering (SRE)', details: '<ul><li>SRE concepts (SLOs, SLAs, error budgets).</li><li>Implementing reliability practices in production.</li><li>Post-mortem analysis and incident management.</li></ul>' },
+                    { id: 'c3-do4', title: 'Advanced CI/CD & Automation', details: '<ul><li>Advanced CI/CD patterns (GitOps).</li><li>Orchestrating complex multi-service deployments.</li><li>Advanced automation for operations.</li></ul>' },
+                    { id: 'c3-do5', title: 'Cloud Native Architecture', details: '<ul><li>Designing resilient, scalable cloud-native apps.</li><li>Serverless, service meshes, event-driven architectures.</li><li>Cloud cost optimization.</li></ul>' }
+                ],
+                dataScience: [
+                    { id: 'c3-ds1', title: 'Advanced Machine Learning & Deep Learning', details: '<ul><li>Complex ML models (ensembles, boosting).</li><li>Neural networks, CNNs, RNNs, and popular deep learning frameworks (TensorFlow, PyTorch).</li></ul>' },
+                    { id: 'c3-ds2', title: 'Big Data Technologies', details: '<ul><li>Processing and analyzing large datasets with Apache Spark, Hadoop, and distributed computing.</li></ul>' },
+                    { id: 'c3-ds3', title: 'Natural Language Processing (NLP)', details: '<ul><li>Techniques for text analysis, sentiment analysis, topic modeling, and language generation.</li></ul>' },
+                    { id: 'c3-ds4', title: 'Data Ethics & Governance', details: '<ul><li>Ethical considerations in data collection and algorithm design.</li><li>Data privacy, fairness, and responsible AI development.</li></ul>' },
+                    { id: 'c3-ds5', title: 'Data Science Capstone Project', details: '<ul><li>Apply data science skills to a real-world problem.</li><li>From data acquisition to model deployment and interpretation.</li></ul>' }
+                ],
+                blockchain: [
+                    { id: 'c3-bc1', title: 'Advanced Smart Contract Development & Auditing', details: '<ul><li>Complex smart contract patterns and best practices.</li><li>Techniques for auditing and securing smart contracts against vulnerabilities.</li></ul>' },
+                    { id: 'c3-bc2', title: 'Decentralized Finance (DeFi) & NFTs', details: '<ul><li>Understanding DeFi protocols, lending, borrowing, and decentralized exchanges.</li><li>Concepts and development of Non-Fungible Tokens (NFTs).</li></ul>' },
+                    { id: 'c3-bc3', title: 'Cross-Chain Interoperability & Scalability', details: '<ul><li>Solutions for communication between different blockchains.</li><li>Layer 2 scaling solutions (e.g., rollups, sidechains).</li></ul>' },
+                    { id: 'c3-bc4', title: 'Blockchain Governance & Regulation', details: '<ul><li>Decentralized autonomous organizations (DAOs) and governance models.</li><li>Regulatory landscape and compliance in the blockchain space.</li></ul>' },
+                    { id: 'c3-bc5', title: 'Blockchain Capstone Project', details: '<ul><li>Design and implement a blockchain-based solution.</li><li>Could involve a DApp, a new consensus mechanism, or a tokenized system.</li></ul>' }
+                ]
+            }
+        };
+
+        function createCourseCard(course) {
+            const codeHtml = course.code ? `<p class="text-sm text-gray-500 font-mono">${course.code}</p>` : '';
+            return `
+                <div class="bg-white rounded-lg shadow-md p-6 cursor-pointer course-card" onclick="openModal('${course.id}')">
+                    <h4 class="font-bold text-lg text-gray-800 mb-2">${course.title}</h4>
+                    ${codeHtml}
+                    <p class="text-sm text-blue-600 font-medium mt-4">View Details &rarr;</p>
+                </div>
+            `;
+        }
+        
+        function createCommonCourseCard(course) {
+             const codeHtml = course.code ? `<p class="text-sm text-gray-500 font-mono">${course.code}</p>` : '';
+             return `
+                <div class="max-w-xl mx-auto">
+                    <h3 class="text-center text-lg font-semibold text-gray-700 mb-2">Common Course</h3>
+                    <div class="bg-white rounded-lg shadow-md p-6 cursor-pointer course-card border-l-4 border-indigo-400" onclick="openModal('${course.id}')">
+                        <h4 class="font-bold text-lg text-gray-800 mb-2">${course.title}</h4>
+                        ${codeHtml}
+                        <p class="text-sm text-indigo-600 font-medium mt-4">View Details &rarr;</p>
+                    </div>
+                </div>
+             `;
+        }
+
+        function populateCourses() {
+            document.getElementById('cycle1-courses').innerHTML = courseData.cycle1.map(createCourseCard).join('');
+            document.getElementById('cycle2-courses-common').innerHTML = courseData.cycle2.common.map(createCommonCourseCard).join('');
+            switchTrack('cycle2', 'cybersec'); // Default to Cybersecurity for Cycle 2
+            switchTrack('cycle3', 'cybersec'); // Default to Cybersecurity for Cycle 3
+        }
+
+        function switchTrack(cycle, track) {
+            const containerId = `${cycle}-courses-specialized`;
+            const container = document.getElementById(containerId);
+            
+            // Get all tabs for the current cycle
+            const tabs = document.querySelectorAll(`#${cycle} .track-tab`);
+
+            tabs.forEach(tab => {
+                if (tab.id === `${cycle}-${track}-tab`) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+
+            container.innerHTML = courseData[cycle][track].map(createCourseCard).join('');
+        }
+
+        const modal = document.getElementById('course-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalCode = document.getElementById('modal-code');
+        const modalBody = document.getElementById('modal-body');
+
+        function openModal(courseId) {
+            const course = Object.values(courseData).flatMap(cycle => 
+                Array.isArray(cycle) ? cycle : Object.values(cycle).flat()
+            ).find(c => c.id === courseId);
+            
+            if (course) {
+                modalTitle.textContent = course.title;
+                modalCode.textContent = course.code || '';
+                modalBody.innerHTML = course.details;
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.style.overflow = 'auto';
+        }
+        
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') closeModal();
+        });
+
+        function scrollToSection(sectionId) {
+            document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                const id = entry.target.getAttribute('id');
+                const navButton = document.querySelector(`.nav-btn[onclick="scrollToSection('${id}')"]`);
+                if (entry.isIntersecting) {
+                    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+                    navButton?.classList.add('active');
+                }
+            });
+        }, { rootMargin: "-50% 0px -50% 0px" });
+
+        document.querySelectorAll('section[id]').forEach(section => observer.observe(section));
+
+        const ctx = document.getElementById('curriculumChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Cycle 1', 'Cycle 2', 'Cycle 3'],
+                datasets: [
+                    {
+                        label: 'Common Courses',
+                        data: [courseData.cycle1.length, courseData.cycle2.common.length, 0],
+                        backgroundColor: 'rgba(191, 219, 254, 0.8)',
+                        borderColor: 'rgba(96, 165, 250, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Cybersecurity Track',
+                        data: [0, courseData.cycle2.cybersec.length, courseData.cycle3.cybersec.length],
+                        backgroundColor: 'rgba(165, 180, 252, 0.8)',
+                        borderColor: 'rgba(129, 140, 248, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'DevOps Track',
+                        data: [0, courseData.cycle2.devops.length, courseData.cycle3.devops.length],
+                        backgroundColor: 'rgba(196, 181, 253, 0.8)',
+                        borderColor: 'rgba(167, 139, 250, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Data Science Track',
+                        data: [0, courseData.cycle2.dataScience.length, courseData.cycle3.dataScience.length],
+                        backgroundColor: 'rgba(144, 238, 144, 0.8)', /* Light Green */
+                        borderColor: 'rgba(60, 179, 113, 1)', /* Medium Sea Green */
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Blockchain Track',
+                        data: [0, courseData.cycle2.blockchain.length, courseData.cycle3.blockchain.length],
+                        backgroundColor: 'rgba(255, 223, 0, 0.8)', /* Gold */
+                        borderColor: 'rgba(218, 165, 32, 1)', /* Goldenrod */
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Curriculum Structure by Track and Cycle',
+                        font: { size: 18 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += `${context.parsed.y} courses`;
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { stacked: true, grid: { display: false } },
+                    y: { stacked: true, grid: { display: false }, beginAtZero: true }
+                }
+            }
+        });
+
+        window.onload = populateCourses;
+    </script>
+</body>
+</html>
+
+
+
